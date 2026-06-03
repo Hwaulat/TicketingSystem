@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TIXA — Internal Ticketing System</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="responsive.css" />
+
+  <!-- Lucide icons (UMD) -->
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <!-- React + Babel (pinned) -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root">
+    <div style="height:100vh;display:grid;place-items:center;color:#868d99;font-family:system-ui;">
+      <div style="text-align:center">
+        <div style="width:40px;height:40px;border:3px solid #e6e8ec;border-top-color:#4f46e5;border-radius:50%;margin:0 auto 14px;animation:spin 1s linear infinite"></div>
+        Memuat TIXA…
+      </div>
+    </div>
+  </div>
+
+  <!-- data first (plain JS) -->
+  <script src="data.js"></script>
+
+  <!-- components (Babel JSX) -->
+  <script type="text/babel" src="icons.jsx"></script>
+  <script type="text/babel" src="components.jsx"></script>
+  <script type="text/babel" src="Dashboard.jsx"></script>
+  <script type="text/babel" src="Tickets.jsx"></script>
+  <script type="text/babel" src="TicketDetail.jsx"></script>
+  <script type="text/babel" src="CreateTicket.jsx"></script>
+  <script type="text/babel" src="Assignments.jsx"></script>
+  <script type="text/babel" src="Admin.jsx"></script>
+  <script type="text/babel" src="Misc.jsx"></script>
+  <script type="text/babel" src="Shell.jsx"></script>
+  <script type="text/babel" src="main.jsx"></script>
+</body>
+</html>
