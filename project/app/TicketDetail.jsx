@@ -236,13 +236,33 @@ function TicketDetail({ id, nav, currentUser }) {
   const commentFileRef = useRef(null);
 
   function addAttachments(fileList) {
-    const newFiles = Array.from(fileList).map(f => ({
-      name: f.name,
-      size: fmtFileSize(f.size),
-      type: f.type,
-      url: URL.createObjectURL(f),
-    }));
+    const now = new Date().toISOString();
+    /* fileList bisa berupa FileList (dari input) ATAU array objek pre-proses dari ActionDialog */
+    const newFiles = Array.from(fileList).map(f => {
+      const isRawFile = typeof f.size === "number"; // File object punya size numerik
+      return {
+        name: f.name,
+        size: isRawFile ? fmtFileSize(f.size) : f.size,
+        type: f.type || "",
+        url: f.url || (isRawFile ? URL.createObjectURL(f) : null),
+      };
+    });
     setAttachments(prev => [...prev, ...newFiles]);
+
+    /* Simpan metadata ke Supabase */
+    const tId   = ticket.id;
+    const tNum  = ticket.number;
+    const uId   = currentUser.id;
+    const uName = currentUser.name;
+    newFiles.forEach(f => {
+      SupabaseDB.addAttachment({
+        ticket_id: tId, ticket_number: tNum,
+        name: f.name, size: f.size, file_type: f.type,
+        url: f.url || null,
+        uploaded_by: uId, uploader_name: uName,
+        created_at: now,
+      }).catch(err => console.error("[TIXA] Gagal simpan attachment:", err));
+    });
   }
 
   if (!ticket) return <Empty icon="FileQuestion" title="Ticket not found" />;
@@ -261,18 +281,48 @@ function TicketDetail({ id, nav, currentUser }) {
 
   function handleConfirm(cfg, files) {
     const newStatus = STATUS_FLOW[dialog];
+    const now = new Date().toISOString();
     setStatus(newStatus);
-    setLocalTimeline(tl => [...tl, { actor: currentUser.id, action:"status", text:`changed status to ${newStatus}`, at: new Date().toISOString() }]);
+    setLocalTimeline(tl => [...tl, { actor: currentUser.id, action:"status", text:`changed status to ${newStatus}`, at: now }]);
     if (files?.length) addAttachments(files);
     setDialog(null);
     toast.push({ type:"success", title:`Status updated → ${newStatus}`, message:`${t.number} processed successfully.` });
+
+    /* ── Simpan ke Supabase (non-blocking) ── */
+    const updates = { status: newStatus, updated_at: now };
+    if (newStatus === "Completed") updates.completed_at = now;
+    SupabaseDB.updateTicket(t.id, updates)
+      .catch(err => console.error("[TIXA] Gagal update status tiket:", err));
+
+    SupabaseDB.addTimelineEvent({
+      ticket_id: t.id, ticket_number: t.number,
+      actor_id: currentUser.id, actor_name: currentUser.name,
+      action: "status",
+      text: `changed status to ${newStatus}`,
+      created_at: now,
+    }).catch(err => console.error("[TIXA] Gagal simpan timeline:", err));
   }
 
   function postComment() {
     if (!comment.trim()) return;
-    setLocalTimeline(tl => [...tl, { actor: currentUser.id, action:"comment", text: comment, at:new Date().toISOString(), internal }]);
+    const now = new Date().toISOString();
+    const text = comment;
+    setLocalTimeline(tl => [...tl, { actor: currentUser.id, action:"comment", text, at: now, internal }]);
     setComment(""); setInternal(false);
     toast.push({ type:"info", title:"Comment added" });
+
+    /* ── Simpan ke Supabase (non-blocking) ── */
+    SupabaseDB.addTimelineEvent({
+      ticket_id: t.id, ticket_number: t.number,
+      actor_id: currentUser.id, actor_name: currentUser.name,
+      action: "comment",
+      text,
+      is_internal: internal,
+      created_at: now,
+    }).catch(err => console.error("[TIXA] Gagal simpan komentar:", err));
+
+    SupabaseDB.updateTicket(t.id, { updated_at: now })
+      .catch(err => console.error("[TIXA] Gagal update tiket:", err));
   }
 
   const sortedTl = [...localTimeline].sort((a,b)=> new Date(a.at)-new Date(b.at));

@@ -74,10 +74,67 @@ function CreateTicket({ nav, currentUser }) {
   const isLast = step === steps.length-1;
   const isReview = isLast;
 
-  function submit() {
+  async function submit() {
     const num = `${cfg.prefix}-202605-${String(Math.floor(Math.random()*9000)+1000)}`;
+    const ticketId = `tk-${Date.now()}`;
+    const now = new Date().toISOString();
+
     setDone(num);
     toast.push({ type:"success", title:"Ticket submitted", message:`${num} created successfully.` });
+
+    /* ── data tiket dasar ── */
+    const base = {
+      id: ticketId,
+      number: num,
+      type,
+      title: form.title || "",
+      status: "Open",
+      priority: form.priority || { Critical:"Critical", High:"High", Medium:"Medium", Low:"Low" }[form.sev] || "Medium",
+      dept_name: form.bu || currentUser.dept || "",
+      requestor_id: currentUser.id,
+      requestor_name: currentUser.name,
+      notes: form.note || "",
+      created_at: now,
+      updated_at: now,
+    };
+
+    /* ── data spesifik per tipe tiket ── */
+    const extra =
+      type === "bug" ? {
+        app_name: form.app || "", module: form.module || "",
+        severity: form.sev || "Medium",
+        environment: form.env || "", bug_type: form.bugType || "",
+        reproducibility: form.repro || "",
+        steps: form.steps || "", expected: form.expected || "", actual: form.actual || "",
+      }
+      : type === "cr" ? {
+        app_name: form.app || "", module: form.module || "",
+        description: form.desc || "", change_type: form.changeType || "",
+        category: form.cat || "", reason: form.reason || "", expected: form.expected || "",
+      }
+      : type === "project_request" ? {
+        project_category: form.cat || "", timeline_est: form.timeline || "",
+        budget: form.budget || "", business_objective: form.obj || "",
+        scope: form.scope || "", target_users: form.users || "",
+        success_criteria: form.success || "",
+      }
+      : /* discussion */ {
+        app_name: form.app || "", category: form.cat || "",
+        description: form.desc || "",
+      };
+
+    /* ── simpan ke Supabase (non-blocking, tidak mengganggu UX) ── */
+    SupabaseDB.createTicket({ ...base, ...extra })
+      .then(() => SupabaseDB.addTimelineEvent({
+        ticket_id: ticketId,
+        ticket_number: num,
+        actor_id: currentUser.id,
+        actor_name: currentUser.name,
+        action: "created",
+        text: `opened this ${DB.TYPES[type].label.toLowerCase()}`,
+        created_at: now,
+      }))
+      .catch(err => console.error("[TIXA] Gagal menyimpan tiket:", err));
   }
 
   return (
