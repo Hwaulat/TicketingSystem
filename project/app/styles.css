@@ -316,3 +316,43 @@ tr:hover .row-actions, .hoverable:hover .row-actions { opacity: 1; }
 
 .scrim { position: fixed; inset: 0; background: rgba(8,10,14,.5); backdrop-filter: blur(2px); z-index: 80; animation: fadeIn .2s ease; }
 [data-theme="dark"] .scrim { background: rgba(0,0,0,.62); }
+
+/* ── Dark mode: paksa browser pakai skema warna gelap ──────
+   Ini memastikan elemen native (select dropdown, date picker,
+   scrollbar, number spinner) render dengan warna gelap,
+   bukan default OS putih-dengan-teks-hitam.
+──────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Option di dalam <select> */
+[data-theme="dark"] select option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Input autofill (Chrome/Edge mengoverride warna secara paksa) */
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover,
+[data-theme="dark"] input:-webkit-autofill:focus,
+[data-theme="dark"] input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  caret-color: var(--text);
+}
+
+/* Input date / datetime / time — color-scheme per-elemen juga */
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="datetime-local"],
+[data-theme="dark"] input[type="month"],
+[data-theme="dark"] input[type="time"],
+[data-theme="dark"] input[type="week"],
+[data-theme="dark"] input[type="number"] {
+  color-scheme: dark;
+}
+
+/* ── Light mode: pastikan tidak ada bleed dark-scheme ────── */
+[data-theme="light"] {
+  color-scheme: light;
+}

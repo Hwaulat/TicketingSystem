@@ -256,7 +256,7 @@ function TrendChart({ data, height = 240 }) {
       </svg>
       {hover!==null && (
         <div style={{ position:"absolute", top:8, left:`${(pad.l+bw*hover+bw/2)/W*100}%`, transform:"translateX(-50%)",
-          background:"var(--text)", color:"var(--surface)", borderRadius:8, padding:"7px 10px", fontSize:11, pointerEvents:"none", whiteSpace:"nowrap", boxShadow:"var(--shadow-lg)", zIndex:5 }}>
+          background:"var(--navy-900)", color:"var(--sidebar-text)", borderRadius:8, padding:"7px 10px", fontSize:11, pointerEvents:"none", whiteSpace:"nowrap", boxShadow:"var(--shadow-lg)", zIndex:5 }}>
           <div style={{ fontWeight:700, marginBottom:3 }}>{data[hover].label} · {data[hover].pr+data[hover].bug+data[hover].cr+data[hover].disc} tickets</div>
           <div style={{ opacity:.85 }}>PR {data[hover].pr} · Bug {data[hover].bug} · CR {data[hover].cr} · Disc {data[hover].disc}</div>
           <div style={{ opacity:.85 }}>Avg resolution {data[hover].res}h</div>
