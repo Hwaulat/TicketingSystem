@@ -1,0 +1,6 @@
+{
+  "outputDirectory": "project/app",
+  "rewrites": [
+    { "source": "/", "destination": "/TIXA Ticketing System.html" }
+  ]
+}
