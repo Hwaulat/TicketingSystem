@@ -56,10 +56,10 @@ function CreateTicket({ nav, currentUser }) {
         <p style={{ color:"var(--text-3)", fontSize:14, marginBottom:18 }}>A confirmation email has been sent to {currentUser.email}</p>
         <div className="card" style={{ padding:"18px 20px", marginBottom:20, display:"inline-flex", flexDirection:"column", gap:4 }}>
           <span style={{ fontSize:12, color:"var(--text-3)" }}>Your ticket number</span>
-          <span className="mono" style={{ fontSize:24, fontWeight:700, color:DB.TYPES[type].color }}>{done}</span>
+          <span className="mono" style={{ fontSize:24, fontWeight:700, color:DB.TYPES[type].color }}>{done.num}</span>
         </div>
         <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
-          <button className="btn btn-primary" onClick={() => nav("ticket",{ id:"tk1" })}><Icon name="Eye" size={16} />Track Ticket</button>
+          <button className="btn btn-primary" onClick={() => nav("ticket",{ id: done.id })}><Icon name="Eye" size={16} />Track Ticket</button>
           <button className="btn btn-ghost" onClick={() => { setDone(null); setType(null); setForm({}); setStep(0); }}><Icon name="Plus" size={16} />Create Another</button>
         </div>
       </div>
@@ -79,7 +79,23 @@ function CreateTicket({ nav, currentUser }) {
     const ticketId = `tk-${Date.now()}`;
     const now = new Date().toISOString();
 
-    setDone(num);
+    /* Tambahkan tiket ke in-memory DB segera agar bisa dibuka di detail page */
+    const inMemTicket = {
+      ...{ ...base, ...extra },
+      appName: extra.app_name || base.app_name || "—",
+      deptName: base.dept_name || "",
+      requestor: base.requestor_id,
+      ba: null, developer: null, qa: null,
+      created: now, updated: now,
+      timeline: [], watchers: [],
+      slaTarget: 24, slaUsed: 0, slaBreached: false, comments: 0, progress: 0,
+    };
+    DB.tickets   = [inMemTicket, ...(DB.tickets || [])];
+    DB.ticketById = DB.ticketById || {};
+    DB.ticketById[ticketId] = inMemTicket;
+    if (window.__refreshTickets) window.__refreshTickets();
+
+    setDone({ num, id: ticketId });
     toast.push({ type:"success", title:"Ticket submitted", message:`${num} created successfully.` });
 
     /* ── data tiket dasar ── */

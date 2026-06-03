@@ -229,11 +229,21 @@ function TicketDetail({ id, nav, currentUser }) {
   const [internal, setInternal] = useState(false);
   const [localTimeline, setLocalTimeline] = useState(ticket?.timeline || []);
   const [status, setStatus] = useState(ticket?.status);
-  const [attachments, setAttachments] = useState([
-    { name:"screenshot-error.png", size:"240 KB", type:"image/png", url:null },
-    { name:"langkah-detail.pdf", size:"1.2 MB", type:"application/pdf", url:null },
-  ]);
+  const [attachments, setAttachments] = useState([]);
   const commentFileRef = useRef(null);
+
+  /* ── Load timeline & attachments dari Supabase saat tiket dibuka ── */
+  useEffect(() => {
+    if (typeof SupabaseDB === "undefined" || !SupabaseDB.isConfigured() || !ticket) return;
+
+    SupabaseDB.getTicketTimeline(ticket.id).then(function(events) {
+      if (events && events.length > 0) setLocalTimeline(events);
+    });
+
+    SupabaseDB.getTicketAttachments(ticket.id).then(function(files) {
+      if (files && files.length > 0) setAttachments(files);
+    });
+  }, [ticket && ticket.id]);
 
   function addAttachments(fileList) {
     const now = new Date().toISOString();

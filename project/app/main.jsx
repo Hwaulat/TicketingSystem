@@ -119,7 +119,27 @@ function App() {
   const [route, setRoute] = useState({ page:"dashboard", params:{} });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [appReady, setAppReady] = useState(false);
+  const [ticketStamp, setTicketStamp] = useState(0);
   window.__setRole = setRole;
+  window.__refreshTickets = () => setTicketStamp(s => s + 1);
+
+  /* ── Muat tiket dari Supabase saat startup ── */
+  useEffect(() => {
+    if (typeof SupabaseDB !== "undefined" && SupabaseDB.isConfigured()) {
+      SupabaseDB.getTickets()
+        .then(function(rows) {
+          if (rows && rows.length >= 0) {
+            DB.tickets   = rows;
+            DB.ticketById = Object.fromEntries(rows.map(function(t) { return [t.id, t]; }));
+          }
+          setAppReady(true);
+        })
+        .catch(function() { setAppReady(true); });
+    } else {
+      setAppReady(true); // Supabase tidak dikonfigurasi — app tetap berjalan
+    }
+  }, []);
 
   // current user follows the demo role
   const roleUserMap = { pm:"u-pm", admin:"u-ad", ba:"u-ba1", developer:"u-dev1", qa:"u-qa1", requestor:"u-req3" };
@@ -140,6 +160,18 @@ function App() {
       setRoute({ page:"dashboard", params:{} });
     }
   }, [role]);
+
+  /* Loading screen saat fetch tiket dari Supabase */
+  if (!appReady) {
+    return (
+      <div style={{ height:"100vh", display:"grid", placeItems:"center", background:"var(--bg)" }}>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ width:40, height:40, border:"3px solid var(--border)", borderTopColor:"var(--accent)", borderRadius:"50%", margin:"0 auto 14px", animation:"spin 1s linear infinite" }} />
+          <div style={{ color:"var(--text-3)", fontSize:14 }}>Memuat data tiket…</div>
+        </div>
+      </div>
+    );
+  }
 
   let page;
   const p = route.page;
@@ -162,7 +194,7 @@ function App() {
       <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, height:"100%" }}>
         <Header route={route} nav={nav} role={role} currentUser={currentUser} theme={theme} setTheme={setTheme} onMenu={()=>setMobileOpen(true)} />
         <main className="main-scroll" style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"20px 22px 60px", background:"var(--bg)" }}>
-          <div key={p+JSON.stringify(route.params)} className="fade-up" style={{ maxWidth:1320, margin:"0 auto" }}>
+          <div key={p+JSON.stringify(route.params)+ticketStamp} className="fade-up" style={{ maxWidth:1320, margin:"0 auto" }}>
             {page}
           </div>
         </main>
