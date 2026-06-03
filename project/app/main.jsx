@@ -56,8 +56,6 @@ function Header({ route, nav, role, currentUser, theme, setTheme, onMenu }) {
         <kbd style={{ position:"absolute", right:10, top:9, fontSize:10.5, color:"var(--text-3)", border:"1px solid var(--border)", borderRadius:5, padding:"2px 6px", fontFamily:"var(--font-mono)" }}>⌘K</kbd>
       </div>
 
-      {/* CTA */}
-      <button className="btn btn-primary header-cta" onClick={()=>nav("create")}><Icon name="Plus" size={16} />Create Ticket</button>
 
       {/* === Header right cluster: date/time → dark/light → notification → profile === */}
       <div style={{ display:"flex", alignItems:"center", gap:8, position:"relative" }}>
