@@ -1,6 +1,24 @@
 /* ============================================================
    Ticket Detail — 3-column layout + activity timeline + actions
    ============================================================ */
+
+function fileIcon(name, mimeType) {
+  const ext = (name || "").split(".").pop().toLowerCase();
+  if (mimeType?.startsWith("image/") || ["png","jpg","jpeg","gif","webp","svg","bmp"].includes(ext)) return "Image";
+  if (mimeType === "application/pdf" || ext === "pdf") return "FileText";
+  if (["doc","docx"].includes(ext) || mimeType?.includes("word")) return "FileText";
+  if (["xls","xlsx","csv"].includes(ext) || mimeType?.includes("sheet")) return "FileSpreadsheet";
+  if (["mp4","mov","avi","mkv"].includes(ext) || mimeType?.startsWith("video/")) return "FileVideo";
+  if (["zip","rar","7z","tar","gz"].includes(ext)) return "FileArchive";
+  return "File";
+}
+
+function fmtFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function MetaRow({ label, children }) {
   return (
     <div style={{ display:"flex", gap:10, padding:"7px 0", fontSize:12.5, alignItems:"flex-start" }}>
@@ -73,6 +91,18 @@ function ActionDialog({ action, ticket, onClose, onConfirm }) {
   const [progress, setProgress] = useState(ticket.progress || 0);
   const [dev, setDev] = useState("");
   const [qa, setQa] = useState("");
+  const [files, setFiles] = useState([]);
+  const fileInputRef = useRef(null);
+
+  function handleFiles(incoming) {
+    const newFiles = Array.from(incoming).map(f => ({
+      name: f.name,
+      size: fmtFileSize(f.size),
+      type: f.type,
+      url: URL.createObjectURL(f),
+    }));
+    setFiles(prev => [...prev, ...newFiles]);
+  }
   const cfg = {
     BA_APPROVE: { title:"Approve Ticket", color:"var(--st-ba-approved)", btn:"Approve", icon:"CircleCheck", note:"Approval note (optional)" },
     BA_REJECT:  { title:"Reject Ticket", color:"var(--st-qafailed)", btn:"Reject", icon:"CircleX", note:"Rejection reason", req:true },
@@ -129,14 +159,37 @@ function ActionDialog({ action, ticket, onClose, onConfirm }) {
           </Field>
         )}
         <Field label="Attachment (optional)">
-          <div style={{ border:"1.5px dashed var(--border-strong)", borderRadius:10, padding:"16px", textAlign:"center", color:"var(--text-3)", fontSize:12.5, cursor:"pointer" }}>
-            <Icon name="Upload" size={18} style={{ marginBottom:4 }} /><div>Drag files here or click to upload</div>
+          <input ref={fileInputRef} type="file" multiple style={{ display:"none" }}
+            onChange={e => handleFiles(e.target.files)} />
+          <div
+            style={{ border:"1.5px dashed var(--border-strong)", borderRadius:10, padding:"16px", textAlign:"center", color:"var(--text-3)", fontSize:12.5, cursor:"pointer" }}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "var(--accent-soft)"; }}
+            onDragLeave={e => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.background = "transparent"; }}
+            onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.background = "transparent"; handleFiles(e.dataTransfer.files); }}
+          >
+            <Icon name="Upload" size={18} style={{ marginBottom:4 }} />
+            <div>Drag files here or click to upload</div>
           </div>
+          {files.length > 0 && (
+            <div style={{ marginTop:8, display:"flex", gap:6, flexWrap:"wrap" }}>
+              {files.map((f, i) => (
+                <div key={i} style={{ display:"flex", gap:6, alignItems:"center", padding:"5px 9px", background:"var(--surface-2)", border:"1px solid var(--border)", borderRadius:8, fontSize:12 }}>
+                  <Icon name={fileIcon(f.name, f.type)} size={13} style={{ color:"var(--accent)", flex:"none" }} />
+                  <span style={{ maxWidth:130, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</span>
+                  <span style={{ color:"var(--text-3)", flex:"none" }}>{f.size}</span>
+                  <button onClick={() => setFiles(fs => fs.filter((_,j) => j!==i))} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-3)", padding:0, lineHeight:1, display:"grid", placeItems:"center" }}>
+                    <Icon name="X" size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </Field>
       </div>
       <div style={{ padding:"14px 20px", borderTop:"1px solid var(--border)", display:"flex", gap:10, justifyContent:"flex-end" }}>
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" disabled={!valid} style={{ background:cfg.color }} onClick={() => onConfirm(cfg)}>
+        <button className="btn btn-primary" disabled={!valid} style={{ background:cfg.color }} onClick={() => onConfirm(cfg, files)}>
           <Icon name={cfg.icon} size={16} />{cfg.btn}
         </button>
       </div>
@@ -176,6 +229,21 @@ function TicketDetail({ id, nav, currentUser }) {
   const [internal, setInternal] = useState(false);
   const [localTimeline, setLocalTimeline] = useState(ticket?.timeline || []);
   const [status, setStatus] = useState(ticket?.status);
+  const [attachments, setAttachments] = useState([
+    { name:"screenshot-error.png", size:"240 KB", type:"image/png", url:null },
+    { name:"langkah-detail.pdf", size:"1.2 MB", type:"application/pdf", url:null },
+  ]);
+  const commentFileRef = useRef(null);
+
+  function addAttachments(fileList) {
+    const newFiles = Array.from(fileList).map(f => ({
+      name: f.name,
+      size: fmtFileSize(f.size),
+      type: f.type,
+      url: URL.createObjectURL(f),
+    }));
+    setAttachments(prev => [...prev, ...newFiles]);
+  }
 
   if (!ticket) return <Empty icon="FileQuestion" title="Ticket not found" />;
   const t = ticket;
@@ -191,10 +259,11 @@ function TicketDetail({ id, nav, currentUser }) {
     QA_PASS:"QA Passed", QA_FAIL:"Rework",
   };
 
-  function handleConfirm(cfg) {
+  function handleConfirm(cfg, files) {
     const newStatus = STATUS_FLOW[dialog];
     setStatus(newStatus);
     setLocalTimeline(tl => [...tl, { actor: currentUser.id, action:"status", text:`changed status to ${newStatus}`, at: new Date().toISOString() }]);
+    if (files?.length) addAttachments(files);
     setDialog(null);
     toast.push({ type:"success", title:`Status updated → ${newStatus}`, message:`${t.number} processed successfully.` });
   }
@@ -301,15 +370,48 @@ function TicketDetail({ id, nav, currentUser }) {
 
             {/* attachments */}
             <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid var(--border)" }}>
-              <div style={{ fontSize:12, color:"var(--text-3)", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}><Icon name="Paperclip" size={13} />Attachment (2)</div>
-              <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                {[["screenshot-error.png","240 KB","Image"],["langkah-detail.pdf","1.2 MB","FileText"]].map(([n,s,ic]) => (
-                  <div key={n} className="hoverable" style={{ display:"flex", gap:9, alignItems:"center", padding:"9px 11px", border:"1px solid var(--border)", borderRadius:10, cursor:"pointer", background:"var(--surface-2)" }}>
-                    <div style={{ width:30, height:30, borderRadius:7, display:"grid", placeItems:"center", background:"var(--accent-soft)", color:"var(--accent)" }}><Icon name={ic} size={15} /></div>
-                    <div><div style={{ fontSize:12.5, fontWeight:550 }}>{n}</div><div style={{ fontSize:11, color:"var(--text-3)" }}>{s}</div></div>
-                  </div>
-                ))}
+              <div style={{ fontSize:12, color:"var(--text-3)", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+                <Icon name="Paperclip" size={13} />Attachment ({attachments.length})
+                <label style={{ marginLeft:"auto", cursor:"pointer" }}>
+                  <input type="file" multiple style={{ display:"none" }} onChange={e => addAttachments(e.target.files)} />
+                  <span className="btn btn-ghost btn-sm" style={{ height:24, fontSize:11, padding:"0 8px", display:"inline-flex", alignItems:"center", gap:4 }}>
+                    <Icon name="Plus" size={12} />Add
+                  </span>
+                </label>
               </div>
+              {attachments.length === 0
+                ? <div style={{ fontSize:12.5, color:"var(--text-3)", padding:"8px 0" }}>No attachments.</div>
+                : (
+                  <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                    {attachments.map((att, i) => (
+                      att.url
+                        ? (
+                          <a key={i} href={att.url} target="_blank" rel="noreferrer" style={{ textDecoration:"none", color:"inherit" }}>
+                            <div className="hoverable" style={{ display:"flex", gap:9, alignItems:"center", padding:"9px 11px", border:"1px solid var(--border)", borderRadius:10, cursor:"pointer", background:"var(--surface-2)" }}>
+                              <div style={{ width:30, height:30, borderRadius:7, display:"grid", placeItems:"center", background:"var(--accent-soft)", color:"var(--accent)" }}>
+                                <Icon name={fileIcon(att.name, att.type)} size={15} />
+                              </div>
+                              <div>
+                                <div style={{ fontSize:12.5, fontWeight:550 }}>{att.name}</div>
+                                <div style={{ fontSize:11, color:"var(--text-3)" }}>{att.size}</div>
+                              </div>
+                            </div>
+                          </a>
+                        ) : (
+                          <div key={i} className="hoverable" style={{ display:"flex", gap:9, alignItems:"center", padding:"9px 11px", border:"1px solid var(--border)", borderRadius:10, cursor:"default", background:"var(--surface-2)" }}>
+                            <div style={{ width:30, height:30, borderRadius:7, display:"grid", placeItems:"center", background:"var(--accent-soft)", color:"var(--accent)" }}>
+                              <Icon name={fileIcon(att.name, att.type)} size={15} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize:12.5, fontWeight:550 }}>{att.name}</div>
+                              <div style={{ fontSize:11, color:"var(--text-3)" }}>{att.size}</div>
+                            </div>
+                          </div>
+                        )
+                    ))}
+                  </div>
+                )
+              }
             </div>
           </div>
 
@@ -335,7 +437,8 @@ function TicketDetail({ id, nav, currentUser }) {
                       <div style={{ flex:1 }}>
                         <textarea className="input" rows="3" placeholder="Write a comment… use @ to mention colleagues" value={comment} onChange={e => setComment(e.target.value)} />
                         <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:8 }}>
-                          <button className="btn btn-ghost btn-sm btn-icon" aria-label="Attach"><Icon name="Paperclip" size={15} /></button>
+                          <input ref={commentFileRef} type="file" multiple style={{ display:"none" }} onChange={e => addAttachments(e.target.files)} />
+                          <button className="btn btn-ghost btn-sm btn-icon" aria-label="Attach" onClick={() => commentFileRef.current?.click()}><Icon name="Paperclip" size={15} /></button>
                           <button className="btn btn-ghost btn-sm btn-icon" aria-label="Mention"><Icon name="AtSign" size={15} /></button>
                           {role!=="requestor" && (
                             <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"var(--text-2)", cursor:"pointer" }}>
