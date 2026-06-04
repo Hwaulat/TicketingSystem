@@ -79,25 +79,6 @@ function CreateTicket({ nav, currentUser }) {
     const ticketId = `tk-${Date.now()}`;
     const now = new Date().toISOString();
 
-    /* Tambahkan tiket ke in-memory DB segera agar bisa dibuka di detail page */
-    const inMemTicket = {
-      ...{ ...base, ...extra },
-      appName: extra.app_name || base.app_name || "—",
-      deptName: base.dept_name || "",
-      requestor: base.requestor_id,
-      ba: null, developer: null, qa: null,
-      created: now, updated: now,
-      timeline: [], watchers: [],
-      slaTarget: 24, slaUsed: 0, slaBreached: false, comments: 0, progress: 0,
-    };
-    DB.tickets   = [inMemTicket, ...(DB.tickets || [])];
-    DB.ticketById = DB.ticketById || {};
-    DB.ticketById[ticketId] = inMemTicket;
-    if (window.__refreshTickets) window.__refreshTickets();
-
-    setDone({ num, id: ticketId });
-    toast.push({ type:"success", title:"Ticket submitted", message:`${num} created successfully.` });
-
     /* ── data tiket dasar ── */
     const base = {
       id: ticketId,
@@ -138,6 +119,25 @@ function CreateTicket({ nav, currentUser }) {
         app_name: form.app || "", category: form.cat || "",
         description: form.desc || "",
       };
+
+    /* Tambahkan tiket ke in-memory DB segera agar bisa dibuka di detail page */
+    const inMemTicket = {
+      ...base, ...extra,
+      appName: extra.app_name || base.app_name || "—",
+      deptName: base.dept_name || "",
+      requestor: base.requestor_id,
+      ba: null, developer: null, qa: null,
+      created: now, updated: now,
+      timeline: [], watchers: [],
+      slaTarget: 24, slaUsed: 0, slaBreached: false, comments: 0, progress: 0,
+    };
+    DB.tickets   = [inMemTicket, ...(DB.tickets || [])];
+    DB.ticketById = DB.ticketById || {};
+    DB.ticketById[ticketId] = inMemTicket;
+    if (window.__refreshTickets) window.__refreshTickets();
+
+    setDone({ num, id: ticketId });
+    toast.push({ type:"success", title:"Ticket submitted", message:`${num} created successfully.` });
 
     /* ── simpan ke Supabase (non-blocking, tidak mengganggu UX) ── */
     SupabaseDB.createTicket({ ...base, ...extra })

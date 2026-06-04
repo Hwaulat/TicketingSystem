@@ -189,7 +189,7 @@ function ActionDialog({ action, ticket, onClose, onConfirm }) {
       </div>
       <div style={{ padding:"14px 20px", borderTop:"1px solid var(--border)", display:"flex", gap:10, justifyContent:"flex-end" }}>
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" disabled={!valid} style={{ background:cfg.color }} onClick={() => onConfirm(cfg, files)}>
+        <button className="btn btn-primary" disabled={!valid} style={{ background:cfg.color }} onClick={() => onConfirm(cfg, files, { dev, qa, progress })}>
           <Icon name={cfg.icon} size={16} />{cfg.btn}
         </button>
       </div>
@@ -229,6 +229,7 @@ function TicketDetail({ id, nav, currentUser }) {
   const [internal, setInternal] = useState(false);
   const [localTimeline, setLocalTimeline] = useState(ticket?.timeline || []);
   const [status, setStatus] = useState(ticket?.status);
+  const [progress, setProgress] = useState(ticket?.progress || 0);
   const [attachments, setAttachments] = useState([]);
   const commentFileRef = useRef(null);
 
@@ -289,7 +290,7 @@ function TicketDetail({ id, nav, currentUser }) {
     QA_PASS:"QA Passed", QA_FAIL:"Rework",
   };
 
-  function handleConfirm(cfg, files) {
+  function handleConfirm(cfg, files, extras = {}) {
     const newStatus = STATUS_FLOW[dialog];
     const now = new Date().toISOString();
     setStatus(newStatus);
@@ -298,9 +299,37 @@ function TicketDetail({ id, nav, currentUser }) {
     setDialog(null);
     toast.push({ type:"success", title:`Status updated → ${newStatus}`, message:`${t.number} processed successfully.` });
 
+    /* ── Update in-memory DB agar list dan detail langsung mencerminkan status baru ── */
+    const memTicket = DB.ticketById[t.id];
+
+    // Hitung progress baru berdasarkan aksi
+    const newProgress = dialog === "DEV_PROGRESS" ? (extras.progress ?? progress)
+      : ["DEV_READY_QA", "QA_PASS", "BA_VALIDATE"].includes(dialog) ? 100
+      : null;
+
+    if (memTicket) {
+      memTicket.status = newStatus;
+      memTicket.updated = now;
+      if (extras.dev) memTicket.developer = extras.dev;
+      if (extras.qa) memTicket.qa = extras.qa;
+      if (newProgress != null) memTicket.progress = newProgress;
+      if (newStatus === "Completed") memTicket.completed = now;
+      // Tambahkan event ke timeline in-memory supaya Recent Activity di dashboard ikut update
+      memTicket.timeline = [...(memTicket.timeline || []),
+        { actor: currentUser.id, action: "status", text: `changed status to ${newStatus}`, at: now }
+      ];
+    }
+    const idx = (DB.tickets || []).findIndex(x => x.id === t.id);
+    if (idx >= 0) DB.tickets[idx] = memTicket || DB.tickets[idx];
+    if (newProgress != null) setProgress(newProgress);
+    if (window.__refreshTickets) window.__refreshTickets();
+
     /* ── Simpan ke Supabase (non-blocking) ── */
     const updates = { status: newStatus, updated_at: now };
     if (newStatus === "Completed") updates.completed_at = now;
+    if (extras.dev) updates.developer_id = extras.dev;
+    if (extras.qa) updates.qa_id = extras.qa;
+    if (newProgress != null) updates.progress = newProgress;
     SupabaseDB.updateTicket(t.id, updates)
       .catch(err => console.error("[TIXA] Gagal update status tiket:", err));
 
@@ -317,9 +346,17 @@ function TicketDetail({ id, nav, currentUser }) {
     if (!comment.trim()) return;
     const now = new Date().toISOString();
     const text = comment;
-    setLocalTimeline(tl => [...tl, { actor: currentUser.id, action:"comment", text, at: now, internal }]);
+    const newEvent = { actor: currentUser.id, action:"comment", text, at: now, internal };
+    setLocalTimeline(tl => [...tl, newEvent]);
     setComment(""); setInternal(false);
     toast.push({ type:"info", title:"Comment added" });
+
+    // Sinkronkan ke in-memory ticket agar dashboard recent activity ikut update
+    const memTicket = DB.ticketById[t.id];
+    if (memTicket) {
+      memTicket.timeline = [...(memTicket.timeline || []), newEvent];
+      memTicket.updated = now;
+    }
 
     /* ── Simpan ke Supabase (non-blocking) ── */
     SupabaseDB.addTimelineEvent({
@@ -365,7 +402,7 @@ function TicketDetail({ id, nav, currentUser }) {
           {["bug","cr"].includes(t.type) && (
             <div style={{ marginTop:6, paddingTop:12, borderTop:"1px solid var(--border)" }}>
               <div style={{ fontSize:11.5, color:"var(--text-3)", marginBottom:6 }}>Progress</div>
-              <Progress value={t.progress} showLabel color={DB.STATUS[status]?.color} />
+              <Progress value={progress} showLabel color={DB.STATUS[status]?.color} />
             </div>
           )}
           <div style={{ marginTop:14, paddingTop:12, borderTop:"1px solid var(--border)", display:"grid", gap:10 }}>
